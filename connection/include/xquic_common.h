@@ -1,6 +1,6 @@
-//
-// Created by yqy on 2022/3/23.
-//
+/**
+ * Created by cxs on 2025/3/07.
+ */
 
 #ifndef XQUICDEMO_XQUIC_COMMON_H
 #define XQUICDEMO_XQUIC_COMMON_H
@@ -9,7 +9,6 @@
 #include <xquic_typedef.h>
 #include <xqc_http3.h>
 #include <stdio.h>
-#include <event.h>
 #include <memory.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -21,8 +20,6 @@
 #include <inttypes.h>
 #include <netdb.h>
 #include <string.h>
-#include "common.h"
-#include <cJSON.h>
 #include <pthread.h>
 #include <xquic_msg_queue.h>
 
@@ -535,62 +532,7 @@ typedef struct xqc_cli_user_conn_s {
 
 } xqc_cli_user_conn_t;
 
-
-/**
- * call back msg to client(Android/IOS)
- * @param user_conn
- * @param msg_type
- * @param data
- * @param data_len
- */
-inline void callback_msg_to_client(xqc_cli_client_args_t *args, MSG_TYPE msg_type,
-                                   const char *data,
-                                   unsigned data_len) {
-
-    xqc_cli_user_data_params_t *user_params = &(args->user_params);
-
-    /* callback to client */
-    if (user_params) {
-        user_params->user_data_callback.callback_msg(
-                user_params->user_data_callback.object_android, msg_type, data,
-                data_len, NULL);
-    }
-}
-
-
-/**
- * call back data to client
- * @param core XQC_OK(0) success other fail
- * @param user_conn
- * @param errMsg
- */
-inline void
-callback_data_to_client(xqc_cli_user_conn_t *user_conn, int core, char *data, size_t len,
-                        void *user_data, int isFinish) {
-    xqc_cli_user_data_params_t *user_params = &(user_conn->ctx->args->user_params);
-    if (user_params) {
-        user_params->user_data_callback.callback_data(
-                user_params->user_data_callback.object_android, core,
-                data, len, user_data, isFinish);
-    }
-}
-
-/**
- * call back data to client
- * @param user_
- * @param core
- * @param err_msg
- */
-inline void
-callback_data_to_client_2(xqc_cli_user_data_params_t *user_params, int core, char *data, int isFinish) {
-    if (user_params && data != NULL) {
-        user_params->user_data_callback.callback_data(
-                user_params->user_data_callback.object_android, core,
-                data, strlen(data), NULL,isFinish);
-    }
-}
-
-inline uint64_t xqc_now() {
+uint64_t xqc_now() {
     /* get microsecond unit time */
     struct timeval tv;
     gettimeofday(&tv, NULL);
