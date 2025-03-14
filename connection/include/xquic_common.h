@@ -13,6 +13,9 @@
 #define AUTHORITY_LEN       128
 #define URL_LEN             1024
 
+const char *line_break = "\n";
+static size_t READ_FILE_BUF_LEN = 2 *1024 * 1024;
+
 typedef enum xqc_cli_alpn_type_s {
     ALPN_HQ,
     ALPN_H3,
@@ -229,3 +232,38 @@ typedef enum xqc_cli_task_mode_s {
     /* concurrently send multi requests in multi connections, with one request each connection */
     MODE_SCSR_CONCURRENT,
 } xqc_cli_task_mode_t;
+
+typedef struct xqc_cli_user_conn_s {
+    // quic 引擎
+  xqc_engine_t *engine = nullptr;
+  // 具体传输的socket fd
+  int fd = 0;
+  // 创建的单个connect
+  xqc_cid_t xqc_cid
+  // 发送数据的流
+  xqc_stream_t *stream = nullptr;
+
+  char server_addr_str[64] = {0};
+  struct sockaddr_in *local_addr_v4 = nullptr;
+  struct sockaddr_in6 *local_addr_v6 = nullptr;
+  socklen_t local_addrlen = 0;
+
+  struct sockaddr_in *peer_addr_v4 = nullptr;
+  struct sockaddr_in6 *peer_addr_v6 = nullptr;
+  socklen_t peer_addrlen = 0;
+
+} xqc_cli_user_conn_t;
+
+
+/**
+ * @brief hq callbacks
+ */
+typedef struct xqc_hq_callbacks_s {
+
+    /* hq connection callbacks */
+    xqc_hq_conn_callbacks_t     hqc_cbs;
+
+    /* hq request callbacks */
+    xqc_hq_request_callbacks_t  hqr_cbs;
+
+} xqc_hq_callbacks_t;

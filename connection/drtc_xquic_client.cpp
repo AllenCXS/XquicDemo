@@ -11,6 +11,14 @@ using namespace std;
 #define XQC_INTEROP_TLS_GROUPS  "X25519:P-256:P-384:P-521"
 #define MAX_PATH_CNT            2
 
+uint64_t xqc_now() {
+    /* get microsecond unit time */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    xqc_usec_t ul = tv.tv_sec * (xqc_usec_t)1000000 + tv.tv_usec;
+    return ul;
+  }
+
 //初始化ssl
 void xqc_cli_init_engine_ssl_config(xqc_engine_ssl_config_t* cfg, xqc_cli_client_args_t *args)
 {
@@ -30,23 +38,19 @@ void xqc_cli_init_callback(xqc_engine_callback_t *cb, xqc_transport_callbacks_t 
     xqc_demo_cli_client_args_t* args){
     static xqc_engine_callback_t callback = {
         .log_callbacks = {
-            .xqc_log_write_err = xqc_demo_cli_write_log_file,
-            .xqc_log_write_stat = xqc_demo_cli_write_log_file,
-            .xqc_qlog_event_write = xqc_demo_cli_write_qlog_file,
+            .xqc_log_write_err = xqc_cli_write_log_file,
+            .xqc_log_write_stat = xqc_cli_write_log_file
         },
-        .keylog_cb = xqc_demo_cli_keylog_cb,
-        .set_event_timer = xqc_demo_cli_set_event_timer,
+        .set_event_timer = xqc_cli_set_event_timer,
     };
 
     static xqc_transport_callbacks_t tcb = {
-        .write_socket = xqc_demo_cli_write_socket,
-        .write_socket_ex = xqc_demo_cli_write_socket_ex,
-        .save_token = xqc_demo_cli_save_token, /* save token */
-        .save_session_cb = xqc_demo_cli_save_session_cb,
-        .save_tp_cb = xqc_demo_cli_save_tp_cb,
-        .conn_update_cid_notify = xqc_demo_cli_conn_update_cid_notify,
-        .ready_to_create_path_notify = xqc_demo_cli_conn_create_path,
-        .path_removed_notify = xqc_demo_cli_path_removed,
+        .write_socket = xqc_cli_write_socket,
+        .write_socket_ex = xqc_cli_write_socket_ex,
+        .save_token = xqc_cli_save_token, /* save token */
+        .save_session_cb = xqc_cli_save_session_cb,
+        .save_tp_cb = xqc_cli_save_tp_cb,
+        .conn_update_cid_notify = xqc_cli_conn_update_cid_notify
     };
 
     *cb = callback;
@@ -75,33 +79,14 @@ int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
         printf("init hq context error, ret: %d\n", ret);
         return ret;
     }
-
-    xqc_h3_callbacks_t h3_cbs = {
-        .h3c_cbs = {
-            .h3_conn_create_notify = xqc_demo_cli_h3_conn_create_notify,
-            .h3_conn_close_notify = xqc_demo_cli_h3_conn_close_notify,
-            .h3_conn_handshake_finished = xqc_demo_cli_h3_conn_handshake_finished,
-        },
-        .h3r_cbs = {
-            .h3_request_create_notify = xqc_demo_cli_h3_request_create_notify,
-            .h3_request_close_notify = xqc_demo_cli_h3_request_close_notify,
-            .h3_request_read_notify = xqc_demo_cli_h3_request_read_notify,
-            .h3_request_write_notify = xqc_demo_cli_h3_request_write_notify,
-        }
-    };
-
-    /* init http3 context */
-    ret = xqc_h3_ctx_init(ctx->engine, &h3_cbs);
-    if (ret != XQC_OK) {
-        printf("init h3 context error, ret: %d\n", ret);
-        return ret;
-    }
+    //todo 初始化H3回调函数(本次不实现)
 
     return ret;
 }
 
 //创建引擎
 int xqc_cli_init_xquic_engine(xqc_cli_ctx_t *ctx, xqc_cli_client_args_t *args){
+    xqc_usec_t = xqc_now();
     /* init engine ssl config */
     xqc_engine_ssl_config_t engine_ssl_config;
     xqc_transport_callbacks_t transport_cbs;
