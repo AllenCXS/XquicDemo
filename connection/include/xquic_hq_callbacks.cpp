@@ -1,6 +1,7 @@
 #include<xquic_hq_callbacks.h>
 
-int xqc_cli_hq_conn_create_notify(xqc_connection_t *conn, const xqc_cid_t *cid, void *user_data)
+//xqc_connection_t *conn, const xqc_cid_t *cid, void *conn_user_data, void *conn_proto_data
+int xqc_cli_hq_conn_create_notify(xqc_connection_t *conn, const xqc_cid_t *cid, void *user_data, void *conn_proto_data)
 {
     xqc_cli_user_conn_t *user_conn = (xqc_cli_user_conn_t *)user_data;
     xqc_conn_set_alp_user_data(conn, user_conn);
@@ -9,7 +10,7 @@ int xqc_cli_hq_conn_create_notify(xqc_connection_t *conn, const xqc_cid_t *cid, 
     return 0;
 }
 
-int xqc_cli_hq_conn_close_notify(xqc_connection_t *conn, const xqc_cid_t *cid, void *user_data)
+int xqc_cli_hq_conn_close_notify(xqc_connection_t *conn, const xqc_cid_t *cid, void *user_data, void *conn_proto_data)
 {
     xqc_cli_user_conn_t *user_conn = (xqc_cli_user_conn_t *) user_data;
     // xqc_demo_cli_on_task_finish(user_conn->ctx, user_conn->task);
@@ -20,7 +21,7 @@ int xqc_cli_hq_conn_close_notify(xqc_connection_t *conn, const xqc_cid_t *cid, v
 
 void xqc_cli_hq_conn_handshake_finished(xqc_connection_t *conn, void *user_data, void *conn_proto_data) {
     xqc_cli_user_conn_t *user_conn = (xqc_cli_user_conn_t *) user_data;
-    xqc_conn_stats_t stats = xqc_conn_get_stats(user_conn->ctx->engine, &user_conn->xqc_cid);
+    xqc_conn_stats_t stats = xqc_conn_get_stats(user_conn->engine, &user_conn->xqc_cid);
     char ortt_info[100] = {0};
     char info[50] = "without 0-RTT";
     if (stats.early_data_flag == XQC_0RTT_ACCEPT) {
@@ -28,11 +29,10 @@ void xqc_cli_hq_conn_handshake_finished(xqc_connection_t *conn, void *user_data,
     } else if (stats.early_data_flag == XQC_0RTT_REJECT) {
         strcpy(info, "0-RTT was rejected");
     }
-    user_conn->last_sock_read_time = xqc_now();
     sprintf(ortt_info, ">>>>>>>> 0rtt_flag:%d(%s)<<<<<<<<<", stats.early_data_flag, info);
     printf("%s", ortt_info);
     //发送ping包
-    xqc_int_t ret = xqc_conn_send_ping(user_conn->engine, user_conn->xqc_cid, nullptr);
+    xqc_int_t ret = xqc_conn_send_ping(user_conn->engine, &user_conn->xqc_cid, nullptr);
     printf("send ping ret:%d\n", ret);
 }
 
@@ -54,7 +54,7 @@ int xqc_client_stream_read_notify(xqc_stream_t *stream, void *user_data) {
     unsigned char fin = 0;
     do {
       read = xqc_stream_recv(stream, buff, buff_size, &fin);
-        printf("xqc_stream_recv read: " << read << ", fin: " << fin << ", buffer: " << buff);
+        cout << "xqc_stream_recv read: " << read << ", fin: " << fin << ", buffer: " << buff << endl;
   
       if (read == -XQC_EAGAIN) {
         break;
@@ -65,7 +65,7 @@ int xqc_client_stream_read_notify(xqc_stream_t *stream, void *user_data) {
       }
       read_sum += read;
     } while (read > 0 && !fin);
-    printf("xqc_stream_recv read sum: " << read_sum << ", fin: " << fin);
+    cout << "xqc_stream_recv read sum: " << read_sum << ", fin: " << fin << endl;
     return 0;
   }
   

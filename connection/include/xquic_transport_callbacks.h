@@ -13,7 +13,7 @@ xqc_cli_write_socket(const unsigned char *buf, size_t size, const struct sockadd
 
 ssize_t
 xqc_cli_write_socket_ex(uint64_t path_id, const unsigned char *buf, size_t size,
-    const struct sockaddr *peer_addr, socklen_t peer_addrlen, void *conn_user_data)    
+    const struct sockaddr *peer_addr, socklen_t peer_addrlen, void *conn_user_data);    
 
 void xqc_cli_save_token(const unsigned char *token, uint32_t token_len, void *conn_user_data);
 void xqc_cli_save_session_cb(const char *data, size_t data_len, void *conn_user_data);

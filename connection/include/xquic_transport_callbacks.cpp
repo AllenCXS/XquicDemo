@@ -1,4 +1,5 @@
 #include<xquic_transport_callbacks.h>
+#include<fcntl.h>
 
 
 ssize_t
@@ -34,7 +35,7 @@ xqc_cli_write_socket_ex(uint64_t path_id, const unsigned char *buf, size_t size,
             res = size;
         }
         } else {
-            printf("Socket is writable, size: " << size << ", res: " << res);
+            cout << "Socket is writable, size: " << size << ", res: " << res << endl;
         }
     } while ((res < 0) && (errno == EINTR));
 

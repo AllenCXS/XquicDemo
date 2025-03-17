@@ -1,5 +1,17 @@
 #include <xquic/xquic.h>
 #include <xquic/xquic_typedef.h>
+#include <printf.h>
+#include <sys/time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <iostream>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+using namespace std;
 
 /* definition for connection */
 #define DEFAULT_SERVER_ADDR "127.0.0.1"
@@ -12,6 +24,11 @@
 #define RESOURCE_LEN        1024
 #define AUTHORITY_LEN       128
 #define URL_LEN             1024
+
+#define XQC_PACKET_TMP_BUF_LEN  1600
+#define MAX_BUF_SIZE            (100*1024*1024)
+#define XQC_INTEROP_TLS_GROUPS  "X25519:P-256:P-384:P-521"
+#define MAX_PATH_CNT            2
 
 const char *line_break = "\n";
 static size_t READ_FILE_BUF_LEN = 2 *1024 * 1024;
@@ -30,6 +47,14 @@ char method_s[][16] = {
     {"GET"}, 
     {"POST"}
 };
+
+/* the congestion control types */
+typedef enum cc_type_s {
+    CC_TYPE_BBR,
+    CC_TYPE_CUBIC,
+    CC_TYPE_RENO,
+    CC_TYPE_COPA
+} CC_TYPE;
 
 
 typedef struct xqc_cli_ctx_s {
@@ -51,9 +76,6 @@ typedef struct xqc_cli_ctx_s {
 
     /* client context */
     xqc_cli_client_args_t  *args;
-
-    /* task schedule context */
-    xqc_demo_cli_task_ctx_t     task_ctx;
 } xqc_cli_ctx_t;
 
 /**
@@ -107,6 +129,23 @@ typedef struct xqc_cli_net_config_s {
     uint8_t rebind_p1;
 
 } xqc_cli_net_config_t;
+
+/**
+ * ============================================================================
+ * the quic config definition section
+ * quic config is those arguments about quic connection
+ * all configuration on network should be put under this section
+ * ============================================================================
+ */
+
+/* definition for quic */
+#define MAX_SESSION_TICKET_LEN      8192    /* session ticket len */
+#define MAX_TRANSPORT_PARAMS_LEN    8192    /* transport parameter len */
+#define XQC_MAX_TOKEN_LEN           8192     /* token len */
+
+#define SESSION_TICKET_FILE         "session_ticket"
+#define TRANSPORT_PARAMS_FILE       "transport_params"
+#define TOKEN_FILE                  "token"
 
 typedef struct xqc_cli_quic_config_s {
     /* alpn protocol of client */
@@ -239,7 +278,7 @@ typedef struct xqc_cli_user_conn_s {
   // 具体传输的socket fd
   int fd = 0;
   // 创建的单个connect
-  xqc_cid_t xqc_cid
+  xqc_cid_t xqc_cid;
   // 发送数据的流
   xqc_stream_t *stream = nullptr;
 
@@ -253,17 +292,3 @@ typedef struct xqc_cli_user_conn_s {
   socklen_t peer_addrlen = 0;
 
 } xqc_cli_user_conn_t;
-
-
-/**
- * @brief hq callbacks
- */
-typedef struct xqc_hq_callbacks_s {
-
-    /* hq connection callbacks */
-    xqc_hq_conn_callbacks_t     hqc_cbs;
-
-    /* hq request callbacks */
-    xqc_hq_request_callbacks_t  hqr_cbs;
-
-} xqc_hq_callbacks_t;

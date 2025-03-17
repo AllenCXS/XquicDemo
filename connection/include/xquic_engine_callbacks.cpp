@@ -1,5 +1,4 @@
 #include<xquic_engine_callbacks.h>
-
 void xqc_cli_write_log_file(xqc_log_level_t lvl, const void *buf, size_t size, void *engine_user_data){
     printf("xqc_engine_callback.log_callbacks.xqc_log_write_err: %s\n", buf);
 }

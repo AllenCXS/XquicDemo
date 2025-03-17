@@ -1,6 +1,9 @@
 #include<iostream>
 #include<xquic_common.h>
-#include <xquic/xquic.h>
+#include<xquic/xquic.h>
+#include<xquic_engine_callbacks.h>
+#include<xquic_hq_callbacks.h>
+#include<xquic_transport_callbacks.h>
 
 using namespace std;
 
@@ -41,7 +44,7 @@ void xqc_cli_init_engine_ssl_config(xqc_engine_ssl_config_t* cfg, xqc_cli_client
 
 //初始化引擎回调函数
 void xqc_cli_init_callback(xqc_engine_callback_t *cb, xqc_transport_callbacks_t *transport_cbs,
-    xqc_demo_cli_client_args_t* args){
+    xqc_cli_client_args_t* args){
     static xqc_engine_callback_t callback = {
         .log_callbacks = {
             .xqc_log_write_err = xqc_cli_write_log_file,
@@ -81,7 +84,7 @@ int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
         }
     };
 
-    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_INTEROP, XQC_ALPN_HQ_INTEROP_LEN, &ap_cbs);
+    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_INTEROP, XQC_ALPN_HQ_INTEROP_LEN, &ap_cbs, nullptr);
     if (ret != XQC_OK) {
         xqc_engine_unregister_alpn(ctx->engine, XQC_ALPN_HQ_INTEROP,XQC_ALPN_HQ_INTEROP_LEN);
         printf("engine register alpn error, ret:%d", ret);
@@ -90,7 +93,7 @@ int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
         printf("engine register alpn:%s,alpn_len:%d,ret:%d", XQC_ALPN_HQ_INTEROP, XQC_ALPN_HQ_INTEROP_LEN, ret);
     }
 
-    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_29, XQC_ALPN_HQ_29_LEN, &ap_cbs);
+    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_29, XQC_ALPN_HQ_29_LEN, &ap_cbs, nullptr);
     if (ret != XQC_OK) {
         xqc_engine_unregister_alpn(ctx->engine, XQC_ALPN_HQ_29,XQC_ALPN_HQ_29_LEN);
         printf("engine register alpn error, ret:%d", ret);
@@ -174,23 +177,23 @@ void client_parse_server_addr(xqc_cli_net_config_t *net_cfg, const std::string &
     int rv = getaddrinfo(server_addr.c_str(),std::to_string(server_port).c_str(), &hints, &result);
     if (rv != 0) {
         char err_msg[1024];
-        sprintf(err_msg, "get addr info from hostname:%s, url:%s", gai_strerror(rv), url);
+        sprintf(err_msg, "get addr info from hostname:%s.", gai_strerror(rv));
         printf("%s\n", err_msg);
     }
-    memcpy(&cfg->addr, result->ai_addr, result->ai_addrlen);
-    cfg->addr_len = result->ai_addrlen;
+    memcpy(&net_cfg->addr, result->ai_addr, result->ai_addrlen);
+    net_cfg->addr_len = result->ai_addrlen;
 
     /* convert to string */
     if (result->ai_family == AF_INET6) {
         inet_ntop(result->ai_family, &(((struct sockaddr_in6 *) result->ai_addr)->sin6_addr),
-                  cfg->server_addr, sizeof(cfg->server_addr));
+        net_cfg->server_addr, sizeof(net_cfg->server_addr));
     } else {
         inet_ntop(result->ai_family, &(((struct sockaddr_in *) result->ai_addr)->sin_addr),
-                  cfg->server_addr, sizeof(cfg->server_addr));
+        net_cfg->server_addr, sizeof(net_cfg->server_addr));
     }
 
-    printf("client parse server addr server[%s] addr:%s:%d", cfg->host, cfg->server_addr,
-         cfg->server_port);
+    printf("client parse server addr server[%s] addr:%s:%d", net_cfg->host, net_cfg->server_addr,
+        net_cfg->server_port);
     freeaddrinfo(result);
 }
 
