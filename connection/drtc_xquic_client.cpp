@@ -1,5 +1,6 @@
 #include<iostream>
 #include<xquic_common.h>
+#include <xquic/xquic.h>
 
 using namespace std;
 
@@ -10,6 +11,11 @@ using namespace std;
 #define MAX_BUF_SIZE            (100*1024*1024)
 #define XQC_INTEROP_TLS_GROUPS  "X25519:P-256:P-384:P-521"
 #define MAX_PATH_CNT            2
+
+#define XQC_ALPN_HQ_INTEROP         "hq-interop"  /* QUIC v1 */
+#define XQC_ALPN_HQ_INTEROP_LEN     10
+#define XQC_ALPN_HQ_29              "hq-29"       /* draft-29 */
+#define XQC_ALPN_HQ_29_LEN          5
 
 uint64_t xqc_now() {
     /* get microsecond unit time */
@@ -56,32 +62,44 @@ void xqc_cli_init_callback(xqc_engine_callback_t *cb, xqc_transport_callbacks_t 
     *cb = callback;
     *transport_cbs = tcb;
 }
-//
+//注册engine
 int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
 {
     int ret = 0;
 
-    xqc_hq_callbacks_t hq_cbs = {
+    xqc_app_proto_callbacks_t ap_cbs = {
         .hqc_cbs = {
-            .conn_create_notify = xqc_demo_cli_hq_conn_create_notify,
-            .conn_close_notify = xqc_demo_cli_hq_conn_close_notify,
+            .conn_create_notify = xqc_cli_hq_conn_create_notify,
+            .conn_close_notify = xqc_cli_hq_conn_close_notify,
+            .conn_handshake_finished = xqc_cli_hq_conn_handshake_finished,
+            .conn_ping_acked = xqc_cli_hq_conn_ping_acked_notify,
         },
-        .hqr_cbs = {
-            .req_close_notify = xqc_demo_cli_hq_req_close_notify,
-            .req_read_notify = xqc_demo_cli_hq_req_read_notify,
-            .req_write_notify = xqc_demo_cli_hq_req_write_notify,
+        .stream_cbs = {
+            .stream_write_notify = xqc_client_stream_write_notify,
+            .stream_read_notify = xqc_client_stream_read_notify,
+            .stream_close_notify = xqc_client_stream_close_notify,
         }
     };
 
-    /* init hq context */
-    ret = xqc_hq_ctx_init(ctx->engine, &hq_cbs);
+    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_INTEROP, XQC_ALPN_HQ_INTEROP_LEN, &ap_cbs);
     if (ret != XQC_OK) {
-        printf("init hq context error, ret: %d\n", ret);
-        return ret;
+        xqc_engine_unregister_alpn(ctx->engine, XQC_ALPN_HQ_INTEROP,XQC_ALPN_HQ_INTEROP_LEN);
+        printf("engine register alpn error, ret:%d", ret);
+        return XQC_ERROR;
+    }else{
+        printf("engine register alpn:%s,alpn_len:%d,ret:%d", XQC_ALPN_HQ_INTEROP, XQC_ALPN_HQ_INTEROP_LEN, ret);
     }
-    //todo 初始化H3回调函数(本次不实现)
 
-    return ret;
+    ret = xqc_engine_register_alpn(ctx->engine, XQC_ALPN_HQ_29, XQC_ALPN_HQ_29_LEN, &ap_cbs);
+    if (ret != XQC_OK) {
+        xqc_engine_unregister_alpn(ctx->engine, XQC_ALPN_HQ_29,XQC_ALPN_HQ_29_LEN);
+        printf("engine register alpn error, ret:%d", ret);
+        return XQC_ERROR;
+    }else{
+        printf("engine register alpn:%s,alpn_len:%d,ret:%d", XQC_ALPN_HQ_29, XQC_ALPN_HQ_29_LEN, ret);
+    }
+
+    return XQC_OK;
 }
 
 //创建引擎
@@ -118,14 +136,14 @@ int xqc_cli_init_xquic_engine(xqc_cli_ctx_t *ctx, xqc_cli_client_args_t *args){
         config.cfg_log_level = XQC_LOG_DEBUG;
         break;
     }
-
+    //创建引擎
     ctx->engine = xqc_engine_create(XQC_ENGINE_CLIENT, &config, 
                                      &engine_ssl_config, &callback, &transport_cbs, ctx);
     if (ctx->engine == NULL) {
         cout << "xqc_engine_create error" << endl;
         return XQC_ERROR;
     }
-
+     //注册alpn
     if (xqc_cli_init_alpn_ctx(ctx) < 0) {
         cout << "init alpn ctx error!" << endl;
         return -1;
@@ -134,6 +152,47 @@ int xqc_cli_init_xquic_engine(xqc_cli_ctx_t *ctx, xqc_cli_client_args_t *args){
 }
 
 //创建连接
+/**
+ * 解析服务器地址
+ * @param cfg
+ * @return
+ */
+void client_parse_server_addr(xqc_cli_net_config_t *net_cfg, const std::string &server_addr, int server_port) {
+    /* set hit for hostname resolve */
+    struct addrinfo hints = {0};
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;        /* allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_DGRAM;     /* datagram socket */
+    hints.ai_flags = AI_PASSIVE;        /* For wildcard IP address */
+    hints.ai_protocol = 0;              /* Any protocol */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+
+    /* resolve server's ip from hostname */
+    struct addrinfo *result = NULL;
+    int rv = getaddrinfo(server_addr.c_str(),std::to_string(server_port).c_str(), &hints, &result);
+    if (rv != 0) {
+        char err_msg[1024];
+        sprintf(err_msg, "get addr info from hostname:%s, url:%s", gai_strerror(rv), url);
+        printf("%s\n", err_msg);
+    }
+    memcpy(&cfg->addr, result->ai_addr, result->ai_addrlen);
+    cfg->addr_len = result->ai_addrlen;
+
+    /* convert to string */
+    if (result->ai_family == AF_INET6) {
+        inet_ntop(result->ai_family, &(((struct sockaddr_in6 *) result->ai_addr)->sin6_addr),
+                  cfg->server_addr, sizeof(cfg->server_addr));
+    } else {
+        inet_ntop(result->ai_family, &(((struct sockaddr_in *) result->ai_addr)->sin_addr),
+                  cfg->server_addr, sizeof(cfg->server_addr));
+    }
+
+    printf("client parse server addr server[%s] addr:%s:%d", cfg->host, cfg->server_addr,
+         cfg->server_port);
+    freeaddrinfo(result);
+}
 
 //创建流
 
