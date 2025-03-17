@@ -1,6 +1,5 @@
 #include <xquic/xquic.h>
 #include <xquic/xquic_typedef.h>
-#include <printf.h>
 #include <sys/time.h>
 #include <stdlib.h>
 #include <string.h>
