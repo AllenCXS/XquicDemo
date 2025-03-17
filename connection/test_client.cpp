@@ -4,10 +4,14 @@ using namespace std;
 
 
 int main() {
-    string str = "1234567890";
-    string str2 = "aaaa";
-    string str3 = str + str2;   
-    cout << "hello world: " << "aaa" << endl;
-    cout << str3 << endl;
+   //初始化引擎
+   //xqc_cli_init_xquic_engine();
+   //创建连接
+   //创建流
+   //发送数据
+
+   //销毁流
+   //销毁连接
+   //销毁引擎
     return 0;
 }
