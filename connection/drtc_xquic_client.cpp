@@ -20,13 +20,7 @@ using namespace std;
 #define XQC_ALPN_HQ_29              "hq-29"       /* draft-29 */
 #define XQC_ALPN_HQ_29_LEN          5
 
-uint64_t xqc_now() {
-    /* get microsecond unit time */
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    xqc_usec_t ul = tv.tv_sec * (xqc_usec_t)1000000 + tv.tv_usec;
-    return ul;
-  }
+xqc_usec_t now_time;
 
 //初始化ssl
 void xqc_cli_init_engine_ssl_config(xqc_engine_ssl_config_t* cfg, xqc_cli_client_args_t *args)
@@ -71,7 +65,7 @@ int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
     int ret = 0;
 
     xqc_app_proto_callbacks_t ap_cbs = {
-        .hqc_cbs = {
+        .conn_cbs = {
             .conn_create_notify = xqc_cli_hq_conn_create_notify,
             .conn_close_notify = xqc_cli_hq_conn_close_notify,
             .conn_handshake_finished = xqc_cli_hq_conn_handshake_finished,
@@ -107,7 +101,7 @@ int xqc_cli_init_alpn_ctx(xqc_cli_ctx_t *ctx)
 
 //创建引擎
 int xqc_cli_init_xquic_engine(xqc_cli_ctx_t *ctx, xqc_cli_client_args_t *args){
-    xqc_usec_t = xqc_now();
+    now_time = xqc_now();
     /* init engine ssl config */
     xqc_engine_ssl_config_t engine_ssl_config;
     xqc_transport_callbacks_t transport_cbs;

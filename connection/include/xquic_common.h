@@ -33,6 +33,14 @@ using namespace std;
 const char *line_break = "\n";
 static size_t READ_FILE_BUF_LEN = 2 *1024 * 1024;
 
+uint64_t xqc_now() {
+    /* get microsecond unit time */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    xqc_usec_t ul = tv.tv_sec * (xqc_usec_t)1000000 + tv.tv_usec;
+    return ul;
+  }
+
 typedef enum xqc_cli_alpn_type_s {
     ALPN_HQ,
     ALPN_H3,
