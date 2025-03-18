@@ -10,7 +10,12 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include<fcntl.h>
 using namespace std;
+
+#define LOG_PATH "clog.log"
+#define KEY_PATH "ckeys.log"
+#define OUT_DIR  "."
 
 /* definition for connection */
 #define DEFAULT_SERVER_ADDR "127.0.0.1"
@@ -69,10 +74,10 @@ typedef struct xqc_cli_ctx_s {
     xqc_engine_t    *engine;
 
     /* libevent context */
-    struct event    *ev_engine;
-    struct event    *ev_task;
-    struct event    *ev_kill;
-    struct event_base *eb;  /* handle of libevent */
+    // struct event    *ev_engine;
+    // struct event    *ev_task;
+    // struct event    *ev_kill;
+    // struct event_base *eb;  /* handle of libevent */
 
     /* log context */
     int             log_fd;
@@ -113,7 +118,7 @@ typedef struct xqc_cli_net_config_s {
     int                 addr_len;
     char                server_addr[64];
     short               server_port;
-    char                host[256];
+    // char                host[256];
 
     /* ipv4 or ipv6 */
     int                 ipv6;
