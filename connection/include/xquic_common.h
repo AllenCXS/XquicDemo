@@ -1,3 +1,6 @@
+#pragma once
+#ifndef XQUIC_COMMON_H
+#define XQUIC_COMMON_H
 #include <xquic/xquic.h>
 #include <xquic/xquic_typedef.h>
 #include <sys/time.h>
@@ -10,7 +13,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include<fcntl.h>
+#include <fcntl.h>
 using namespace std;
 
 #define LOG_PATH "clog.log"
@@ -28,37 +31,30 @@ using namespace std;
 #define RESOURCE_LEN        1024
 #define AUTHORITY_LEN       128
 #define URL_LEN             1024
-
+#define XQC_INTEROP_TLS_GROUPS "X25519:P-256:P-384:P-521"
 #define XQC_PACKET_TMP_BUF_LEN  1600
 #define MAX_BUF_SIZE            (100*1024*1024)
-#define XQC_INTEROP_TLS_GROUPS  "X25519:P-256:P-384:P-521"
 #define MAX_PATH_CNT            2
 
-const char *line_break = "\n";
-static size_t READ_FILE_BUF_LEN = 2 *1024 * 1024;
+extern const char *line_break;
+extern size_t READ_FILE_BUF_LEN;
 
-uint64_t xqc_now() {
-    /* get microsecond unit time */
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    xqc_usec_t ul = tv.tv_sec * (xqc_usec_t)1000000 + tv.tv_usec;
-    return ul;
-  }
+extern int get_sys_errno();
+
+extern uint64_t xqc_now();
 
 typedef enum xqc_cli_alpn_type_s {
     ALPN_HQ,
     ALPN_H3,
 } xqc_cli_alpn_type_t;
+
 /* request method */
 typedef enum request_method_e {
     REQUEST_METHOD_GET,
     REQUEST_METHOD_POST,
 } REQUEST_METHOD;
 
-char method_s[][16] = {
-    {"GET"}, 
-    {"POST"}
-};
+extern char method_s[][16];
 
 /* the congestion control types */
 typedef enum cc_type_s {
@@ -68,47 +64,17 @@ typedef enum cc_type_s {
     CC_TYPE_COPA
 } CC_TYPE;
 
+/* the task mode types */
+typedef enum xqc_cli_task_mode_s {
+    /* send multi requests in single connection with multi streams */
+    MODE_SCMR,
 
-typedef struct xqc_cli_ctx_s {
-    /* xquic engine context */
-    xqc_engine_t    *engine;
+    /* serially send multi requests in multi connections, with one request each connection */
+    MODE_SCSR_SERIAL,
 
-    /* libevent context */
-    // struct event    *ev_engine;
-    // struct event    *ev_task;
-    // struct event    *ev_kill;
-    // struct event_base *eb;  /* handle of libevent */
-
-    /* log context */
-    int             log_fd;
-    char            log_path[256];
-
-    /* key log context */
-    int             keylog_fd;
-
-    /* client context */
-    xqc_cli_client_args_t  *args;
-} xqc_cli_ctx_t;
-
-/**
- * ============================================================================
- * the client args definition section
- * client initial args
- * ============================================================================
- */
-typedef struct xqc_cli_client_args_s {
-    /* network args */
-    xqc_cli_net_config_t   net_cfg;
-
-    /* quic args */
-    xqc_cli_quic_config_t  quic_cfg;
-
-    /* environment args */
-    xqc_cli_env_config_t   env_cfg;
-
-    /* request args */
-    xqc_cli_requests_t     req_cfg;
-} xqc_cli_client_args_t;
+    /* concurrently send multi requests in multi connections, with one request each connection */
+    MODE_SCSR_CONCURRENT,
+} xqc_cli_task_mode_t;
 
 /* network arguments */
 typedef struct xqc_cli_net_config_s {
@@ -229,16 +195,15 @@ typedef struct xqc_cli_env_config_s {
     int     life;
 } xqc_cli_env_config_t;
 
-
 /**
  * ============================================================================
  * the request config definition section
  * all configuration on request should be put under this section
  * ============================================================================
  */
- #define MAX_REQUEST_CNT 20480    /* client might deal MAX_REQUEST_CNT requests once */
- #define MAX_REQUEST_LEN 256     /* the max length of a request */
- #define g_host ""
+#define MAX_REQUEST_CNT 20480    /* client might deal MAX_REQUEST_CNT requests once */
+#define MAX_REQUEST_LEN 256     /* the max length of a request */
+#define g_host ""
 typedef struct xqc_cli_request_s {
     char            path[RESOURCE_LEN];         /* request path */
     char            scheme[8];                  /* request scheme, http/https */
@@ -272,35 +237,65 @@ typedef struct xqc_cli_requests_s {
 
 } xqc_cli_requests_t;
 
+/**
+ * ============================================================================
+ * the client args definition section
+ * client initial args
+ * ============================================================================
+ */
+typedef struct xqc_cli_client_args_s {
+    /* network args */
+    xqc_cli_net_config_t   net_cfg;
 
-typedef enum xqc_cli_task_mode_s {
-    /* send multi requests in single connection with multi streams */
-    MODE_SCMR,
+    /* quic args */
+    xqc_cli_quic_config_t  quic_cfg;
 
-    /* serially send multi requests in multi connections, with one request each connection */
-    MODE_SCSR_SERIAL,
+    /* environment args */
+    xqc_cli_env_config_t   env_cfg;
 
-    /* concurrently send multi requests in multi connections, with one request each connection */
-    MODE_SCSR_CONCURRENT,
-} xqc_cli_task_mode_t;
+    /* request args */
+    xqc_cli_requests_t     req_cfg;
+} xqc_cli_client_args_t;
+
+typedef struct xqc_cli_ctx_s {
+    /* xquic engine context */
+    xqc_engine_t    *engine;
+
+    /* libevent context */
+    // struct event    *ev_engine;
+    // struct event    *ev_task;
+    // struct event    *ev_kill;
+    // struct event_base *eb;  /* handle of libevent */
+
+    /* log context */
+    int             log_fd;
+    char            log_path[256];
+
+    /* key log context */
+    int             keylog_fd;
+
+    /* client context */
+    xqc_cli_client_args_t  *args;
+} xqc_cli_ctx_t;
 
 typedef struct xqc_cli_user_conn_s {
     // quic 引擎
-  xqc_engine_t *engine = nullptr;
-  // 具体传输的socket fd
-  int fd = 0;
-  // 创建的单个connect
-  xqc_cid_t xqc_cid;
-  // 发送数据的流
-  xqc_stream_t *stream = nullptr;
+    xqc_engine_t *engine = nullptr;
+    // 具体传输的socket fd
+    int fd = 0;
+    // 创建的单个connect
+    xqc_cid_t xqc_cid;
+    // 发送数据的流
+    xqc_stream_t *stream = nullptr;
 
-  char server_addr_str[64] = {0};
-  struct sockaddr_in *local_addr_v4 = nullptr;
-  struct sockaddr_in6 *local_addr_v6 = nullptr;
-  socklen_t local_addrlen = 0;
+    char server_addr_str[64] = {0};
+    struct sockaddr_in *local_addr_v4 = nullptr;
+    struct sockaddr_in6 *local_addr_v6 = nullptr;
+    socklen_t local_addrlen = 0;
 
-  struct sockaddr_in *peer_addr_v4 = nullptr;
-  struct sockaddr_in6 *peer_addr_v6 = nullptr;
-  socklen_t peer_addrlen = 0;
+    struct sockaddr_in *peer_addr_v4 = nullptr;
+    struct sockaddr_in6 *peer_addr_v6 = nullptr;
+    socklen_t peer_addrlen = 0;
 
 } xqc_cli_user_conn_t;
+#endif

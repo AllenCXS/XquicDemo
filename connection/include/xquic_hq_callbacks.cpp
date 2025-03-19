@@ -54,7 +54,7 @@ int xqc_client_stream_read_notify(xqc_stream_t *stream, void *user_data) {
     unsigned char fin = 0;
     do {
       read = xqc_stream_recv(stream, buff, buff_size, &fin);
-        cout << "xqc_stream_recv read: " << read << ", fin: " << fin << ", buffer: " << buff << endl;
+        cout << "[cxs]xqc_stream_recv read: " << read << ", fin: " << fin << ", buffer: " << buff << endl;
   
       if (read == -XQC_EAGAIN) {
         break;
@@ -70,7 +70,7 @@ int xqc_client_stream_read_notify(xqc_stream_t *stream, void *user_data) {
   }
   
   int xqc_client_stream_write_notify(xqc_stream_t *stream, void *user_data) {
-    printf("[tzw] ap_cbs.stream_cbs.stream_write_notify \n");
+    printf("ap_cbs.stream_cbs.stream_write_notify \n");
     return 0;
   }
 

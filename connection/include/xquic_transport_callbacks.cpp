@@ -42,10 +42,8 @@ xqc_cli_write_socket_ex(uint64_t path_id, const unsigned char *buf, size_t size,
     return res;
 }
 
-//TODO 修改
-void
-xqc_cli_save_token(const unsigned char *token, uint32_t token_len, void *conn_user_data)
-{
+//修改
+void xqc_cli_save_token(const unsigned char *token, uint32_t token_len, void *conn_user_data){
     xqc_cli_user_conn_t *user_conn = (xqc_cli_user_conn_t*)conn_user_data;
 
     int fd = open(TOKEN_FILE, O_TRUNC | O_CREAT | O_WRONLY, 0666);

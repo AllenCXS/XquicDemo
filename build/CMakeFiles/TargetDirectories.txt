@@ -1,0 +1,3 @@
+/Users/lizhi/Documents/workSpace/XquicDemo/build/CMakeFiles/xquic_client.dir
+/Users/lizhi/Documents/workSpace/XquicDemo/build/CMakeFiles/edit_cache.dir
+/Users/lizhi/Documents/workSpace/XquicDemo/build/CMakeFiles/rebuild_cache.dir

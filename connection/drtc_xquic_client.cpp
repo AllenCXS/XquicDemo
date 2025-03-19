@@ -5,6 +5,8 @@
 #include<xquic_hq_callbacks.h>
 #include<xquic_transport_callbacks.h>
 #include<xquic_socket.h>
+#include<cassert>
+#include<thread>
 
 using namespace std;
 
@@ -13,7 +15,6 @@ using namespace std;
 
 #define XQC_PACKET_TMP_BUF_LEN  1600
 #define MAX_BUF_SIZE            (100*1024*1024)
-#define XQC_INTEROP_TLS_GROUPS  "X25519:P-256:P-384:P-521"
 #define MAX_PATH_CNT            2
 
 #define XQC_ALPN_HQ_INTEROP         "hq-interop"  /* QUIC v1 */
@@ -177,14 +178,6 @@ void xqc_cli_init_args(xqc_cli_client_args_t *args){
 
 }
 
-//初始化引擎上下文ctx以及参数默认配置
-void xqc_cli_init_ctx(xqc_cli_ctx_t *pctx, xqc_cli_client_args_t *args)
-{
-    strncpy(pctx->log_path, args->env_cfg.log_path, sizeof(pctx->log_path) - 1);
-    pctx->args = args;
-    xqc_cli_open_log_file(pctx);
-    xqc_cli_open_keylog_file(pctx);
-}
 //日志打印
 int xqc_cli_open_log_file(xqc_cli_ctx_t *ctx)
 {
@@ -222,6 +215,16 @@ int xqc_cli_close_keylog_file(xqc_cli_ctx_t *ctx)
     ctx->keylog_fd = 0;
     return 0;
 }
+
+//初始化引擎上下文ctx以及参数默认配置
+void xqc_cli_init_ctx(xqc_cli_ctx_t *pctx, xqc_cli_client_args_t *args)
+{
+    strncpy(pctx->log_path, args->env_cfg.log_path, sizeof(pctx->log_path) - 1);
+    pctx->args = args;
+    xqc_cli_open_log_file(pctx);
+    xqc_cli_open_keylog_file(pctx);
+}
+
 //释放资源(引擎上下文资源)
 void xqc_cli_free_ctx(xqc_cli_ctx_t *ctx){
     xqc_cli_close_keylog_file(ctx);
@@ -259,7 +262,7 @@ public:
      * @param cfg
      * @return
      */
-    void client_parse_server_addr(xqc_cli_net_config_t *net_cfg, const std::string &server_addr, int server_port) {
+    void client_parse_server_addr(xqc_cli_user_conn_t *user_conn, xqc_cli_net_config_t *net_cfg, const std::string &server_addr, int server_port) {
         /* set hit for hostname resolve */
         struct addrinfo hints = {0};
         memset(&hints, 0, sizeof(struct addrinfo));
@@ -284,25 +287,34 @@ public:
 
         /* convert to string */
         if (result->ai_family == AF_INET6) {
+
+            user_conn->peer_addr_v6 =(sockaddr_in6 *)malloc(sizeof(struct sockaddr_in6));
+            memcpy(user_conn->peer_addr_v6, result->ai_addr, result->ai_addrlen);
+
             inet_ntop(result->ai_family, &(((struct sockaddr_in6 *) result->ai_addr)->sin6_addr),
             net_cfg->server_addr, sizeof(net_cfg->server_addr));
         } else {
+
+            user_conn->peer_addr_v4 =(sockaddr_in *)malloc(sizeof(struct sockaddr_in));
+            memcpy(user_conn->peer_addr_v4, result->ai_addr, result->ai_addrlen);
+
             inet_ntop(result->ai_family, &(((struct sockaddr_in *) result->ai_addr)->sin_addr),
             net_cfg->server_addr, sizeof(net_cfg->server_addr));
         }
-
+        user_conn->peer_addrlen = result->ai_addrlen;
         printf("client parse server addr addr:%s:%d", net_cfg->server_addr, net_cfg->server_port);
         freeaddrinfo(result);
     }
     //创建连接
-    static std::unique_ptr<ConnCtx> create_connection(xqc_engine_t *engine, xqc_cli_client_args_t *args) {
+    static std::unique_ptr<ConnCtx> create_connection(xqc_engine_t *engine, xqc_cli_client_args_t *args, const std::string &server_addr, 
+        int server_port) {
         // 创建连接上下文
         std::unique_ptr<ConnCtx> conn_ctx(new ConnCtx);
         //create user_conn
         xqc_cli_user_conn_t *user_conn;        
         memset(user_conn, 0, sizeof(xqc_cli_user_conn_t)); 
-        
-
+        //解析ip、端口
+        conn_ctx->client_parse_server_addr(user_conn, &args->net_cfg, server_addr, server_port);
         //初始化连接配置
         xqc_conn_settings_t conn_settings;
         conn_ctx->init_connection_settings(&conn_settings, args);
@@ -315,6 +327,24 @@ public:
         if (user_conn->fd < 0) {
             printf("client_create_socket error\n");
             return nullptr;
+        }
+        sockaddr *local_addr;
+        socklen_t local_len;
+        if (conn_ctx->user_conn->peer_addr_v6) {
+            conn_ctx->user_conn->local_addr_v6 = (sockaddr_in6 *)malloc(sizeof(struct sockaddr_in6));
+            local_len = sizeof(struct sockaddr_in6);
+            local_addr = (sockaddr *)conn_ctx->user_conn->local_addr_v6;
+        } else if (conn_ctx->user_conn->peer_addr_v4) {
+            conn_ctx->user_conn->local_addr_v4 = (sockaddr_in *)malloc(sizeof(struct sockaddr_in));
+            local_len = sizeof(struct sockaddr_in);
+            local_addr = (sockaddr *)conn_ctx->user_conn->local_addr_v4;
+        } else {
+            assert(false);
+        }
+        conn_ctx->user_conn->local_addrlen = local_len;
+        int ret = getsockname(conn_ctx->user_conn->fd, local_addr, &local_len);
+        if (ret < 0) {
+            cout << "getsockname error, errno: " << get_sys_errno() << endl;
         }
 
         const xqc_cid_t *cid;
@@ -417,24 +447,167 @@ public:
     }
     //创建流
     void create_stream() {
-       //todo
-      }
+        if (user_conn != nullptr && user_conn->stream != nullptr) {
+            return;
+        }
+        user_conn->stream = xqc_stream_create(user_conn->engine, &user_conn->xqc_cid, nullptr, user_conn);
+        if (nullptr == user_conn->stream) {
+        printf("create transport stream error");
+        }
+        printf("create xqc stream create success, stream id: " + xqc_stream_id(user_conn->stream));
+    }
     //销毁流
     void dsestory_stream() {
-        //todo
+        if (user_conn != nullptr && user_conn->stream == nullptr) {
+            return;
+        }
+        printf("destory stream, id: " + xqc_stream_id(user_conn->stream));
+          xqc_stream_close(user_conn->stream);
+          user_conn->stream = nullptr;
     }
     //销毁连接
     void destory_conn() {
-        //todo
+        if (user_conn == nullptr) {
+            return;
+        }
         dsestory_stream();
         xqc_conn_close(user_conn->engine, &user_conn->xqc_cid);
         xqc_engine_main_logic(user_conn->engine);
+
+        if (user_conn->local_addr_v4) {
+            free(user_conn->local_addr_v4);
+            user_conn->local_addr_v4 = nullptr;
+          }
+          if (user_conn->local_addr_v6) {
+            free(user_conn->local_addr_v6);
+            user_conn->local_addr_v6 = nullptr;
+          }
+          if (user_conn->peer_addr_v4) {
+            free(user_conn->peer_addr_v4);
+            user_conn->peer_addr_v4 = nullptr;
+          }
+          if (user_conn->peer_addr_v6) {
+            free(user_conn->peer_addr_v6);
+            user_conn->peer_addr_v6 = nullptr;
+          }
+
         free(user_conn);
         user_conn = nullptr; 
     }
 
-    //发送数据
+    //发送数据,不关闭fd
+    ssize_t send_msg(unsigned char *msg, size_t len, int fin = 0) {
+        if (user_conn == nullptr) {
+            return -1;
+        }
+        if (user_conn->fd == 0 || user_conn->stream == nullptr) {
+          printf("xquic send msg error");
+          return -1;
+        }
+        ssize_t ret = xqc_stream_send(user_conn->stream, msg, len, fin);
+        cout << "xqc_stream_send msg=" << (const char *)msg << ", ret: " << ret << endl;
+        return ret;
+    }
+
+    //发送数据,关闭fd
+    ssize_t send_msg_fin(unsigned char *msg, size_t len) {
+        int fin = 1;
+        return send_msg(msg, len, fin);
+    }
 
     //接收数据
+    void receive_msg() {
+        ssize_t recv_size = 0;
+        ssize_t recv_sum = 0;
+        struct sockaddr *local_addr = nullptr;
+        struct sockaddr *peer_addr = nullptr;
+        socklen_t local_len = 0;
+        socklen_t peer_len = 0;
+        unsigned char packet_buf[XQC_PACKET_TMP_BUF_LEN];
+        int i;
+
+        if (this->user_conn->peer_addr_v4 != nullptr) {
+            local_addr = (struct sockaddr *)user_conn->local_addr_v4;
+            peer_addr = (struct sockaddr *)user_conn->peer_addr_v4;
+        } else if (this->user_conn->peer_addr_v6 != nullptr) {
+            peer_addr = (struct sockaddr *)user_conn->peer_addr_v6;
+            local_addr = (struct sockaddr *)user_conn->local_addr_v6;
+        } else {
+            assert(false);
+        }
+        local_len = user_conn->local_addrlen;
+        peer_len = user_conn->peer_addrlen;
+        do {
+            recv_size = recvfrom(user_conn->fd, packet_buf, sizeof(packet_buf), 0,
+            peer_addr, &user_conn->peer_addrlen);
+            if (recv_size < 0 && get_sys_errno() == EAGAIN) {
+                break;
+            }
+    
+            if (recv_size <= 0) {
+                break;
+            }
+    
+            recv_sum += recv_size;
+            uint64_t recv_time = xqc_now();
+            int ret = xqc_engine_packet_process(user_conn->engine, packet_buf, recv_size,
+                local_addr, local_len, peer_addr, peer_len, (xqc_msec_t)recv_time, user_conn);
+            if ( ret != XQC_OK){
+                cout << "xqc_client_read_handler: packet process err, ret: " << ret << endl;
+                return;
+            }
+        } while (recv_size > 0);
+    
+    finish_recv:
+        xqc_engine_finish_recv(user_conn->engine);
+    }
 };
 
+void testReceive(std::unique_ptr<ConnCtx>& conn_ctx_) {
+    conn_ctx_->receive_msg();
+}
+
+int main() {
+    /* init env if necessary */
+   //  xqc_platform_init_env();
+   
+   //  /* get input client args */
+    xqc_cli_client_args_t *args;
+    memset(args, 0, sizeof(xqc_cli_client_args_t));
+    //设置默认参数
+    xqc_cli_init_args(args);
+
+   //  /* init client ctx */
+    xqc_cli_ctx_t *ctx;
+    memset(ctx, 0, sizeof(xqc_cli_ctx_t));
+    xqc_cli_init_ctx(ctx, args);
+
+   //  /* init engine */
+   xqc_cli_init_xquic_engine(ctx, args);
+
+   // 创建连接
+   std::unique_ptr<ConnCtx> conn_ctx_;
+   conn_ctx_ = ConnCtx::create_connection(ctx->engine, args, "127.0.0.1", 8188);
+
+   //创建流
+   conn_ctx_->create_stream();
+
+   //接收数据
+   std::thread t1(testReceive, std::ref(conn_ctx_));
+
+   //发送数据
+   string msg = "hello world";
+   conn_ctx_->send_msg((unsigned char *)msg.data(), msg.size());
+
+   //等待30s
+   // 休眠1秒
+   std::this_thread::sleep_for(std::chrono::seconds(30));
+  
+   //销毁连接
+   conn_ctx_->destory_conn();
+   //释放资源
+    xqc_engine_destroy(ctx->engine);
+    xqc_cli_free_ctx(ctx);
+
+   return 0;
+}
