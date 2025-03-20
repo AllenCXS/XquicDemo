@@ -77,36 +77,36 @@ typedef enum xqc_cli_task_mode_s {
 } xqc_cli_task_mode_t;
 
 /* network arguments */
-typedef struct xqc_cli_net_config_s {
+// typedef struct xqc_cli_net_config_s {
 
-    /* server addr info */
-    struct sockaddr_in6 addr;
-    int                 addr_len;
-    char                server_addr[64];
-    short               server_port;
-    // char                host[256];
+//     /* server addr info */
+//     struct sockaddr_in6 addr;
+//     int                 addr_len;
+//     char                server_addr[64];
+//     short               server_port;
+//     // char                host[256];
 
-    /* ipv4 or ipv6 */
-    int                 ipv6;
+//     /* ipv4 or ipv6 */
+//     int                 ipv6;
 
-    /* congestion control algorithm */
-    CC_TYPE             cc;     /* congestion control algorithm */
-    int                 pacing; /* is pacing on */
+//     /* congestion control algorithm */
+//     CC_TYPE             cc;     /* congestion control algorithm */
+//     int                 pacing; /* is pacing on */
 
-    /* idle persist timeout */
-    int                 conn_timeout;
+//     /* idle persist timeout */
+//     int                 conn_timeout;
 
-    xqc_cli_task_mode_t mode;
+//     xqc_cli_task_mode_t mode;
 
-    char iflist[MAX_PATH_CNT][128];     /* list of interfaces */
-    int ifcnt;
+//     char iflist[MAX_PATH_CNT][128];     /* list of interfaces */
+//     int ifcnt;
     
-    int multipath;
+//     int multipath;
 
-    uint8_t rebind_p0;
-    uint8_t rebind_p1;
+//     uint8_t rebind_p0;
+//     uint8_t rebind_p1;
 
-} xqc_cli_net_config_t;
+// } xqc_cli_net_config_t;
 
 /**
  * ============================================================================
@@ -245,7 +245,7 @@ typedef struct xqc_cli_requests_s {
  */
 typedef struct xqc_cli_client_args_s {
     /* network args */
-    xqc_cli_net_config_t   net_cfg;
+    // xqc_cli_net_config_t   net_cfg;
 
     /* quic args */
     xqc_cli_quic_config_t  quic_cfg;
@@ -254,7 +254,7 @@ typedef struct xqc_cli_client_args_s {
     xqc_cli_env_config_t   env_cfg;
 
     /* request args */
-    xqc_cli_requests_t     req_cfg;
+    // xqc_cli_requests_t     req_cfg;
 } xqc_cli_client_args_t;
 
 typedef struct xqc_cli_ctx_s {
@@ -284,7 +284,7 @@ typedef struct xqc_cli_user_conn_s {
     // 具体传输的socket fd
     int fd = 0;
     // 创建的单个connect
-    xqc_cid_t xqc_cid;
+    xqc_cid_t *xqc_cid;
     // 发送数据的流
     xqc_stream_t *stream = nullptr;
 

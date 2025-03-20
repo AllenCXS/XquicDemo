@@ -1,0 +1,8 @@
+initial_max_streams_bidi=1152921504606846976
+initial_max_streams_uni=1152921504606846976
+initial_max_stream_data_bidi_local=524288
+initial_max_stream_data_bidi_remote=524288
+initial_max_stream_data_uni=524288
+initial_max_data=786432
+max_ack_delay=26
+max_datagram_frame_size=16383

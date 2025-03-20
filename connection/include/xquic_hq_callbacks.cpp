@@ -21,7 +21,7 @@ int xqc_cli_hq_conn_close_notify(xqc_connection_t *conn, const xqc_cid_t *cid, v
 
 void xqc_cli_hq_conn_handshake_finished(xqc_connection_t *conn, void *user_data, void *conn_proto_data) {
     xqc_cli_user_conn_t *user_conn = (xqc_cli_user_conn_t *) user_data;
-    xqc_conn_stats_t stats = xqc_conn_get_stats(user_conn->engine, &user_conn->xqc_cid);
+    xqc_conn_stats_t stats = xqc_conn_get_stats(user_conn->engine, user_conn->xqc_cid);
     char ortt_info[100] = {0};
     char info[50] = "without 0-RTT";
     if (stats.early_data_flag == XQC_0RTT_ACCEPT) {
@@ -30,10 +30,15 @@ void xqc_cli_hq_conn_handshake_finished(xqc_connection_t *conn, void *user_data,
         strcpy(info, "0-RTT was rejected");
     }
     sprintf(ortt_info, ">>>>>>>> 0rtt_flag:%d(%s)<<<<<<<<<", stats.early_data_flag, info);
-    printf("%s", ortt_info);
+    printf("ortt_info %s", ortt_info);
     //发送ping包
-    xqc_int_t ret = xqc_conn_send_ping(user_conn->engine, &user_conn->xqc_cid, nullptr);
+    xqc_int_t ret = xqc_conn_send_ping(user_conn->engine, user_conn->xqc_cid, nullptr);
     printf("send ping ret:%d\n", ret);
+    cout << "datagram mss: "
+      << xqc_datagram_get_mss(conn) << ", DCID: "
+      << xqc_dcid_str_by_scid(user_conn->engine, user_conn->xqc_cid)
+      << ", SCID: " << xqc_scid_str(user_conn->engine, user_conn->xqc_cid)
+      << ", send ping: " << ret << endl;
 }
 
 void xqc_cli_hq_conn_ping_acked_notify(xqc_connection_t *conn, const xqc_cid_t *cid,
