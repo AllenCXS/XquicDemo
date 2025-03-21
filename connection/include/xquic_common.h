@@ -76,38 +76,6 @@ typedef enum xqc_cli_task_mode_s {
     MODE_SCSR_CONCURRENT,
 } xqc_cli_task_mode_t;
 
-/* network arguments */
-// typedef struct xqc_cli_net_config_s {
-
-//     /* server addr info */
-//     struct sockaddr_in6 addr;
-//     int                 addr_len;
-//     char                server_addr[64];
-//     short               server_port;
-//     // char                host[256];
-
-//     /* ipv4 or ipv6 */
-//     int                 ipv6;
-
-//     /* congestion control algorithm */
-//     CC_TYPE             cc;     /* congestion control algorithm */
-//     int                 pacing; /* is pacing on */
-
-//     /* idle persist timeout */
-//     int                 conn_timeout;
-
-//     xqc_cli_task_mode_t mode;
-
-//     char iflist[MAX_PATH_CNT][128];     /* list of interfaces */
-//     int ifcnt;
-    
-//     int multipath;
-
-//     uint8_t rebind_p0;
-//     uint8_t rebind_p1;
-
-// } xqc_cli_net_config_t;
-
 /**
  * ============================================================================
  * the quic config definition section
@@ -119,7 +87,7 @@ typedef enum xqc_cli_task_mode_s {
 /* definition for quic */
 #define MAX_SESSION_TICKET_LEN      8192    /* session ticket len */
 #define MAX_TRANSPORT_PARAMS_LEN    8192    /* transport parameter len */
-#define XQC_MAX_TOKEN_LEN           8192     /* token len */
+#define XQC_MAX_TOKEN_LEN           256     /* token len */
 
 #define SESSION_TICKET_FILE         "session_ticket"
 #define TRANSPORT_PARAMS_FILE       "transport_params"
@@ -278,13 +246,17 @@ typedef struct xqc_cli_ctx_s {
     xqc_cli_client_args_t  *args;
 } xqc_cli_ctx_t;
 
-typedef struct xqc_cli_user_conn_s {
+class ConnCtx
+{
+private:
+    /* data */
+public:
     // quic 引擎
     xqc_engine_t *engine = nullptr;
     // 具体传输的socket fd
     int fd = 0;
     // 创建的单个connect
-    xqc_cid_t *xqc_cid;
+    xqc_cid_t *xqc_cid = nullptr;
     // 发送数据的流
     xqc_stream_t *stream = nullptr;
 
@@ -297,5 +269,46 @@ typedef struct xqc_cli_user_conn_s {
     struct sockaddr_in6 *peer_addr_v6 = nullptr;
     socklen_t peer_addrlen = 0;
 
-} xqc_cli_user_conn_t;
+    // 构造函数
+    ConnCtx();
+    //析构函数
+    ~ConnCtx();
+
+    /**
+     * 解析服务器地址
+     * @param cfg
+     * @return
+     */
+    void client_parse_server_addr(const std::string &server_addr, int server_port);
+
+    /**
+     * 创建连接上下文
+     */
+    static std::unique_ptr<ConnCtx> create_connCtx(xqc_engine_t *engine, xqc_cli_client_args_t *args, const std::string &server_addr, 
+        int server_port);
+
+    /**
+     * 初始化链接设置
+     */
+    void init_connection_settings(xqc_conn_settings_t *settings);
+    //创建连接
+    void create_conn();
+
+    //创建流
+    void create_stream();
+
+    //销毁流
+    void dsestory_stream();
+    //销毁连接
+    void destory_conn();
+
+    //发送数据,不关闭fd
+    ssize_t send_msg(unsigned char *msg, size_t len, int fin = 0);
+
+    //发送数据,关闭fd
+    ssize_t send_msg_fin(unsigned char *msg, size_t len);
+
+    //接收数据
+    void receive_msg();
+};
 #endif

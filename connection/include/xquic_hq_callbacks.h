@@ -16,4 +16,9 @@ int xqc_client_stream_write_notify(xqc_stream_t *stream, void *user_data);
 
 int xqc_client_stream_close_notify(xqc_stream_t *stream, void *user_data); 
 
+int stream_create_notify_callback(xqc_stream_t *stream, void *user_data);
+  
+void stream_closing_notify_callback(xqc_stream_t *stream, xqc_int_t err_code,
+                                      void *user_data);
+
 #endif
